@@ -348,6 +348,12 @@ async function requestNotificationPermission() {
 }
 // अब call करो
 requestNotificationPermission();
+// ✅ Register Service Worker
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js")
+    .then(reg => console.log("SW registered ✅", reg))
+    .catch(err => console.error("SW registration failed:", err));
+}
 
 // ✅ Admin reply check system
 async function checkReplies() {
@@ -357,15 +363,16 @@ async function checkReplies() {
     if (data.messages && data.messages.length > 0) {
       data.messages.forEach(msg => {
         // ✅ System notification agar permission hai
-        if (Notification.permission === "granted") {
-          new Notification("Admin Reply", {
-            body: msg,
-            icon: "https://cdn-icons-png.flaticon.com/512/306/306473.png"
-          });
-        } else {
-          // ✅ fallback: page ke andar hi popup
-          showNotification("Admin: " + msg, false);
-        }
+        if (navigator.serviceWorker.controller) {
+  navigator.serviceWorker.controller.postMessage({
+    type: "SHOW_NOTIFICATION",
+    message: msg
+  });
+} else {
+  // fallback if SW not ready
+  showNotification("Admin: " + msg, false);
+}
+
       });
     }
   } catch (err) {
