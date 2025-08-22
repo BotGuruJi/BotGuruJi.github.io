@@ -323,49 +323,47 @@
         showNotification('Failed to send message', true);
       }
     }
-    // Load recent users from localStorage immediately
-    loadRecentDropdown();
-    initForm();
-    requestNotificationPermission();
+    // पहले form init करो
+loadRecentDropdown();
+initForm();
 
+// ✅ Notification permission lena
+async function requestNotificationPermission() {
+  const permission = await Notification.requestPermission();
+  if (permission !== "granted") {
+    alert("Please allow notifications for admin messages!");
+  }
+}
+// अब call करो
+requestNotificationPermission();
 
-    // ✅ Notification permission lena
-    async function requestNotificationPermission() {
-      const permission = await Notification.requestPermission();
-      if (permission !== "granted") {
-        alert("Please allow notifications for admin messages!");
-      }
-    }
-    requestNotificationPermission();
-
-
-    // ✅ Admin reply check system
-    async function checkReplies() {
-      try {
-        const res = await fetch(`${BASE_URL}/get_reply`);
-        const data = await res.json();
-        if (data.messages && data.messages.length > 0) {
-          data.messages.forEach(msg => {
-            // ✅ System notification agar permission hai
-            if (Notification.permission === "granted") {
-              new Notification("Admin Reply", {
-                body: msg,
-                icon: "https://cdn-icons-png.flaticon.com/512/306/306473.png" // optional icon
-              });
-            } else {
-              // ✅ fallback: page ke andar hi popup
-              showNotification("Admin: " + msg, false);
-            }
+// ✅ Admin reply check system
+async function checkReplies() {
+  try {
+    const res = await fetch(`${BASE_URL}/get_reply`);
+    const data = await res.json();
+    if (data.messages && data.messages.length > 0) {
+      data.messages.forEach(msg => {
+        // ✅ System notification agar permission hai
+        if (Notification.permission === "granted") {
+          new Notification("Admin Reply", {
+            body: msg,
+            icon: "https://cdn-icons-png.flaticon.com/512/306/306473.png"
           });
-
+        } else {
+          // ✅ fallback: page ke andar hi popup
+          showNotification("Admin: " + msg, false);
         }
-      } catch (err) {
-        console.error("Error fetching replies", err);
-      }
+      });
     }
+  } catch (err) {
+    console.error("Error fetching replies", err);
+  }
+}
 
-    // ✅ हर 10 सेकंड पर reply check करो
-    setInterval(checkReplies, 10000);
+// ✅ हर 10 सेकंड पर reply check karo
+setInterval(checkReplies, 10000);
+
   </script>
 </body>
 
