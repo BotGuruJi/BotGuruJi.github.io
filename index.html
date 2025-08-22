@@ -4,7 +4,6 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="google-site-verification" content="c6tfp51ru-pzl2eXySyquzUpg0WjV7B_TjLFJzZ8p3Y" />
   
   <title>Grade Card Fetcher</title>
   <style>
@@ -176,13 +175,13 @@
   </div>
 
   <div class="card">
-    <h3>Feedback / Talk to Admin</h3>
+    <h3>Feedback</h3>
     <textarea id="feedback&message" rows="4"></textarea>
     <button onclick="submitFeedback()">Submit Feedback</button>
     <h3 style="text-align: center;">Your Feedback is Valuable to Us!</h3>
-    <p style="text-align: center;">If you have any questions or need assistance, feel free to reach out!</p>
-    <h5 style="text-align: center;">Send Message, If I'm online reply will come here</h5>
-    <button onclick="sendMessage()">Send Message</button>
+    <p style="text-align: center;">If you have any questions or need assistance, feel free to reach out! <a href="https://t.me/beu_gradecardbot">Open Telegram</a>
+</p>
+    
   </div>
 
 
@@ -335,20 +334,7 @@ toggle.addEventListener('click', () => {
       }
     }
 
-    async function sendMessage() {
-      const message = document.getElementById('feedback&message').value;
-      try {
-        const response = await fetch(`${BASE_URL}/talktome`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message })
-        });
-        if (response.ok) showNotification('Message sent successfully', false);
-        else showNotification('Failed to send message', true);
-      } catch (err) {
-        showNotification('Failed to send message', true);
-      }
-    }
+  
     // पहले form init करो
 loadRecentDropdown();
 initForm();
