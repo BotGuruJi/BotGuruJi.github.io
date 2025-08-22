@@ -1,11 +1,372 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
-  <meta charset="utf-8">
-  <title>My GitHub Page</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Grade Card Fetcher</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 700px;
+      margin: 20px auto;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+
+    h2,
+    h3 {
+      text-align: center;
+      color: #333;
+    }
+
+    .card {
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 15px;
+    }
+
+    label {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    input,
+    button,
+    textarea,
+    select {
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      width: 100%;
+      box-sizing: border-box;
+      /* ensures padding doesn't break width */
+    }
+
+    button {
+      background: #007bff;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+
+    #notificationContainer {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 9999;
+    }
+
+    .notification {
+      background: #e8f5e9;
+      color: #080;
+      padding: 12px 20px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      font-weight: bold;
+      opacity: 0;
+      transform: translateY(-20px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+      min-width: 200px;
+    }
+
+    .notification.error {
+      background: #ffebee;
+      color: #c00;
+    }
+
+    .notification.success {
+      background: #e8f5e9;
+      color: #080;
+    }
+
+    img {
+      max-width: 100%;
+      height: auto;
+    }
+
+    /* Responsive adjustments */
+    @media (min-width: 768px) {
+      .form-group {
+        flex-direction: row;
+        align-items: center;
+      }
+
+      .form-group label {
+        width: 180px;
+        /* fixed label width on desktop */
+        margin-bottom: 0;
+      }
+
+      .form-group input,
+      .form-group select,
+      .form-group textarea {
+        flex: 1;
+        /* take remaining space */
+      }
+    }
+  </style>
+
 </head>
+
 <body>
-  <h1>Hello World!</h1>
-  <p>Welcome to my website.</p>
+  <h2>🎓 Grade Card Fetcher</h2>
+
+  <!-- popup notification -->
+  <!-- Notification container -->
+  <div id="notificationContainer" style="position: fixed; top: 20px; right: 20px; z-index: 9999;"></div>
+
+
+  <div class="form-group">
+    <label>Registration Number</label>
+    <input type="text" id="regNo" required>
+  </div>
+
+  <div class="form-group">
+    <label>Password</label>
+    <input type="password" id="password" required>
+  </div>
+
+  <div class="card">
+    <form id="gradeForm">
+      <div class="form-group">
+        <label>Captcha</label>
+        <div id="captchaDisplay"></div>
+        <input type="text" id="captcha" placeholder="Enter Captcha" required>
+      </div>
+
+      <div class="form-group">
+        <label>Recent Registration Numbers</label>
+        <select id="recentList">
+          <option value="">-- Select Recent --</option>
+        </select>
+      </div>
+
+      <button type="submit">Fetch Grade Card</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h3>Feedback / Talk to Admin</h3>
+    <textarea id="feedback&message" rows="4"></textarea>
+    <button onclick="submitFeedback()">Submit Feedback</button>
+    <h3 style="text-align: center;">Your Feedback is Valuable to Us!</h3>
+    <p style="text-align: center;">If you have any questions or need assistance, feel free to reach out!</p>
+    <h5 style="text-align: center;">Send Message, If I'm online reply will come here</h5>
+    <button onclick="sendMessage()">Send Message</button>
+  </div>
+
+
+
+
+
+  <script>
+    const BASE_URL = "https://gradecard-rbkp.onrender.com"; // Flask backend URL
+    let token, timestamp, hash;
+
+    // LocalStorage Helpers
+    function getSavedUsers() {
+      return JSON.parse(localStorage.getItem("users") || "[]");
+    }
+    function saveUser(regNo, password) {
+      let users = getSavedUsers();
+      const existingIndex = users.findIndex(u => u.regNo === regNo);
+      if (existingIndex >= 0) {
+        users[existingIndex].password = password; // replace password
+      } else {
+        users.push({ regNo, password });
+      }
+      localStorage.setItem("users", JSON.stringify(users));
+      loadRecentDropdown();
+    }
+    function loadRecentDropdown() {
+      const users = getSavedUsers();
+      const recentList = document.getElementById("recentList");
+      recentList.innerHTML = '<option value="">-- Select Recent --</option>';
+      users.forEach(u => {
+        const opt = document.createElement("option");
+        opt.value = u.regNo;
+        opt.textContent = u.regNo;
+        recentList.appendChild(opt);
+      });
+    }
+
+    document.getElementById("recentList").addEventListener("change", (e) => {
+      const regNo = e.target.value;
+      if (!regNo) return;
+      const users = getSavedUsers();
+      const user = users.find(u => u.regNo === regNo);
+      if (user) {
+        document.getElementById("regNo").value = user.regNo;
+        document.getElementById("password").value = user.password;
+      }
+    });
+
+    async function initForm() {
+      try {
+        const response = await fetch(`${BASE_URL}/init`);
+        const data = await response.json();
+        token = data.token;
+        timestamp = data.timestamp;
+        hash = data.hash;
+
+        if (data.captcha_img) {
+          document.getElementById('captchaDisplay').innerHTML =
+            `<img src="${data.captcha_img}" alt="Captcha" style="border:1px solid #ccc; margin-bottom:5px;">`;
+        } else {
+          document.getElementById('captchaDisplay').innerHTML = `<p>Captcha unavailable</p>`;
+        }
+
+        if (data.is_admin) {
+          document.getElementById('password').removeAttribute('required');
+          document.getElementById('captcha').removeAttribute('required');
+        }
+
+        loadRecentDropdown();
+      } catch (err) {
+        showNotification('Failed to initialize form', true);
+      }
+    }
+
+
+    function showNotification(message, isError) {
+      const container = document.getElementById('notificationContainer');
+      const notif = document.createElement('div');
+      notif.className = 'notification ' + (isError ? 'error' : 'success');
+      notif.textContent = message;
+
+      container.appendChild(notif);
+
+      // Animate in the notification more slowly
+      setTimeout(() => {
+        notif.style.opacity = '1';
+        notif.style.transform = 'translateY(0)';
+      }, 200);
+
+      // Auto-hide after 5 seconds more slowly
+      setTimeout(() => {
+        notif.style.opacity = '0';
+        notif.style.transform = 'translateY(-20px)';
+        setTimeout(() => container.removeChild(notif), 500);
+      }, 5000);
+    }
+
+
+    // ✅ Direct backend download trigger karega
+    document.getElementById('gradeForm').onsubmit = (e) => {
+      e.preventDefault();
+
+      const regNo = document.getElementById('regNo').value;
+      const password = document.getElementById('password').value;
+
+      saveUser(regNo, password);
+
+      const form = document.createElement('form');
+      form.method = "POST";
+      form.action = `${BASE_URL}/fetch_grade_card`;
+
+      [["regNo", regNo], ["password", password], ["captcha", document.getElementById('captcha').value], ["token", token], ["timestamp", timestamp], ["hash", hash]]
+        .forEach(([name, value]) => {
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = name;
+          input.value = value;
+          form.appendChild(input);
+        });
+
+      document.body.appendChild(form);
+      form.submit();
+    };
+
+    async function submitFeedback() {
+      const feedback = document.getElementById('feedback&message').value;
+      try {
+        const response = await fetch(`${BASE_URL}/feedback`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ feedback })
+        });
+        if (response.ok) showNotification('Feedback submitted successfully', false);
+        else showNotification('Failed to submit feedback', true);
+      } catch (err) {
+        showNotification('Failed to submit feedback', true);
+      }
+    }
+
+    async function sendMessage() {
+      const message = document.getElementById('feedback&message').value;
+      try {
+        const response = await fetch(`${BASE_URL}/talktome`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message })
+        });
+        if (response.ok) showNotification('Message sent successfully', false);
+        else showNotification('Failed to send message', true);
+      } catch (err) {
+        showNotification('Failed to send message', true);
+      }
+    }
+    // Load recent users from localStorage immediately
+    loadRecentDropdown();
+    initForm();
+    requestNotificationPermission();
+
+
+    // ✅ Notification permission lena
+    async function requestNotificationPermission() {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        alert("Please allow notifications for admin messages!");
+      }
+    }
+    requestNotificationPermission();
+
+
+    // ✅ Admin reply check system
+    async function checkReplies() {
+      try {
+        const res = await fetch(`${BASE_URL}/get_reply`);
+        const data = await res.json();
+        if (data.messages && data.messages.length > 0) {
+          data.messages.forEach(msg => {
+            // ✅ System notification agar permission hai
+            if (Notification.permission === "granted") {
+              new Notification("Admin Reply", {
+                body: msg,
+                icon: "https://cdn-icons-png.flaticon.com/512/306/306473.png" // optional icon
+              });
+            } else {
+              // ✅ fallback: page ke andar hi popup
+              showNotification("Admin: " + msg, false);
+            }
+          });
+
+        }
+      } catch (err) {
+        console.error("Error fetching replies", err);
+      }
+    }
+
+    // ✅ हर 10 सेकंड पर reply check करो
+    setInterval(checkReplies, 10000);
+  </script>
 </body>
+
 </html>
